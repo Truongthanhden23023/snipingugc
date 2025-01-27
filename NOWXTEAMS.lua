@@ -17,20 +17,20 @@ toggleButton.Position = UDim2.new(0, 0, 1, -60)
 toggleButton.Text = "Toggle UI"
 toggleButton.Parent = screenGui
 
--- TextBox để nhập ID item
+-- TextBox để nhập ID item hoặc link item
 local textBox = Instance.new("TextBox")
 textBox.Size = UDim2.new(0, 300, 0, 40)
 textBox.Position = UDim2.new(0.5, -150, 0, 30)
-textBox.PlaceholderText = "Nhập ID Item"
+textBox.PlaceholderText = "Nhập ID hoặc Link Item"
 textBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 textBox.Parent = uiFrame
 
--- Button xử lý ID item
+-- Button xử lý ID item hoặc link item
 local submitButton = Instance.new("TextButton")
 submitButton.Size = UDim2.new(0, 300, 0, 40)
 submitButton.Position = UDim2.new(0.5, -150, 0, 80)
-submitButton.Text = "Xử lý ID"
+submitButton.Text = "Xử lý"
 submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 submitButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 submitButton.Parent = uiFrame
@@ -44,7 +44,7 @@ itemLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 itemLabel.BackgroundTransparency = 1
 itemLabel.Parent = uiFrame
 
--- Label hiển thị số lượng stock
+-- Label hiển thị số lượng stock (chỉ hiển thị cho item UGC Limited)
 local stockLabel = Instance.new("TextLabel")
 stockLabel.Size = UDim2.new(0, 300, 0, 40)
 stockLabel.Position = UDim2.new(0.5, -150, 0, 170)
@@ -106,6 +106,22 @@ autoClaimButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 autoClaimButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 autoClaimButton.Parent = uiFrame
 
+-- Nút Browser để mở Google (hoặc trang web khác)
+local browserButton = Instance.new("TextButton")
+browserButton.Size = UDim2.new(0, 300, 0, 40)
+browserButton.Position = UDim2.new(0.5, -150, 0, 570)
+browserButton.Text = "Mở Browser"
+browserButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+browserButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+browserButton.Parent = uiFrame
+
+-- Hàm mở trình duyệt web bên trong Roblox (chỉ có thể mở các trang web trong Roblox)
+browserButton.MouseButton1Click:Connect(function()
+    -- Mở Google trong Roblox (hoặc trang web khác)
+    game:GetService("GuiService"):OpenBrowserWindow("https://www.google.com") -- Mở trang Google
+    print("Mở trang web Google: https://www.google.com")
+end)
+
 -- Biến trạng thái bật/tắt auto-click và auto-claim
 local isAutoClickEnabled = false
 local isAutoClaimEnabled = false
@@ -123,7 +139,15 @@ local ugcCodeDatabase = {
     ["FLEX456"] = {name = "Khiên Vàng", reward = "100 Robux"},
 }
 
--- Hàm cập nhật thông tin item
+-- Hàm lấy ID từ Link
+local function getItemIdFromLink(link)
+    -- Giả sử rằng item link có định dạng: https://www.roblox.com/catalog/ID_ITEM
+    local idPattern = "catalog/(%d+)"
+    local itemId = string.match(link, idPattern)
+    return itemId
+end
+
+-- Hàm cập nhật thông tin item (không kiểm tra stock đối với item bình thường)
 local function updateItemInfo(itemID)
     -- Kiểm tra nếu ID là một item trong cơ sở dữ liệu
     local itemData = itemDatabase[itemID]
@@ -131,15 +155,15 @@ local function updateItemInfo(itemID)
     -- Nếu có item trong cơ sở dữ liệu
     if itemData then
         itemLabel.Text = "Tên Item: " .. itemData.name
-        stockLabel.Text = "Số lượng còn lại: " .. itemData.stock
         imageLabel.Image = itemData.imageUrl
 
-        -- Hiển thị nút claim nếu có hàng
-        if itemData.stock > 0 then
+        -- Nếu là item UGC Limited, hiển thị stock
+        if itemData.stock then
+            stockLabel.Text = "Số lượng còn lại: " .. itemData.stock
             claimButton.Visible = true
         else
+            stockLabel.Text = ""
             claimButton.Visible = false
-            stockLabel.Text = "Item đã hết hàng!"
         end
     else
         itemLabel.Text = "Không tìm thấy item."
@@ -149,109 +173,30 @@ local function updateItemInfo(itemID)
     end
 end
 
--- Xử lý ID Item
+-- Xử lý ID Item hoặc Link Item
 submitButton.MouseButton1Click:Connect(function()
-    local inputID = textBox.Text
-    updateItemInfo(inputID)
-end)
-
--- Xử lý UGC Code
-ugcSubmitButton.MouseButton1Click:Connect(function()
-    local inputCode = ugcCodeBox.Text
-    local ugcItem = ugcCodeDatabase[inputCode]
+    local inputText = textBox.Text
+    local itemID = nil
     
-    -- Kiểm tra nếu code có trong cơ sở dữ liệu
-    if ugcItem then
-        print("Code hợp lệ: " .. ugcItem.name .. " - " .. ugcItem.reward)
-        -- Hiển thị thông tin thưởng (reward) khi nhập code đúng
-        itemLabel.Text = "Code UGC: " .. ugcItem.name
-        stockLabel.Text = "Thưởng: " .. ugcItem.reward
-        imageLabel.Image = "rbxassetid://1122334455"  -- Thay hình ảnh phù hợp với reward
+    -- Kiểm tra nếu nhập link
+    if string.find(inputText, "https://www.roblox.com/catalog/") then
+        itemID = getItemIdFromLink(inputText)  -- Lấy ID từ link
     else
-        print("Code không hợp lệ!")
-        itemLabel.Text = "Không tìm thấy code UGC!"
+        itemID = inputText  -- Nếu không phải link, coi như là ID
+    end
+    
+    if itemID then
+        updateItemInfo(itemID)
+    else
+        itemLabel.Text = "Không tìm thấy item."
         stockLabel.Text = ""
         imageLabel.Image = ""
-    end
-end)
-
--- Claim Item
-claimButton.MouseButton1Click:Connect(function()
-    local inputID = textBox.Text
-    local itemData = itemDatabase[inputID]
-
-    if itemData and itemData.stock > 0 then
-        itemData.stock = itemData.stock - 1
-        stockLabel.Text = "Số lượng còn lại: " .. itemData.stock
-        print("Bạn đã claim item: " .. itemData.name)
         claimButton.Visible = false
-    else
-        print("Item không còn nữa hoặc không tồn tại.")
     end
 end)
 
--- Tạo tính năng Auto-Click
-autoClickButton.MouseButton1Click:Connect(function()
-    isAutoClickEnabled = not isAutoClickEnabled
-    if isAutoClickEnabled then
-        autoClickButton.Text = "Tắt Auto-Click"
-        -- Thực hiện hành động auto-click
-        while isAutoClickEnabled do
-            submitButton.MouseButton1Click:Fire()
-            wait(1)  -- Click mỗi giây
-        end
-    else
-        autoClickButton.Text = "Bật Auto-Click"
-    end
-end)
-
--- Tạo tính năng Auto-Claim
-autoClaimButton.MouseButton1Click:Connect(function()
-    isAutoClaimEnabled = not isAutoClaimEnabled
-    if isAutoClaimEnabled then
-        autoClaimButton.Text = "Tắt Auto-Claim"
-        -- Thực hiện auto-claim item
-        while isAutoClaimEnabled do
-            claimButton.MouseButton1Click:Fire()
-            wait(1)  -- Claim mỗi giây
-        end
-    else
-        autoClaimButton.Text = "Bật Auto-Claim"
-    end
-end)
-
--- Cửa sổ UI có thể di chuyển
-local dragging = false
-local dragInput = nil
-local dragStart = nil
-local startPos = nil
-
-uiFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = uiFrame.Position
-    end
-end)
-
-uiFrame.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        uiFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-uiFrame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
--- Nút để ẩn hoặc hiện cửa sổ UI
-toggleButton.MouseButton1Click:Connect(function()
-    if uiFrame.Visible then
-        uiFrame.Visible = false
-    else
-        uiFrame.Visible = true
-    end
+-- Thêm chức năng Claim cho item UGC (giả lập)
+claimButton.MouseButton1Click:Connect(function()
+    -- Thực hiện claim item (giả lập)
+    print("Claiming item!")
 end)
